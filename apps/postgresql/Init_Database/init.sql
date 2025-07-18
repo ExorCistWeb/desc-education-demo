@@ -1,0 +1,7 @@
+
+
+CREATE ROLE test2 WITH LOGIN PASSWORD 'Test2test2_';
+ALTER USER test2 CREATEDB;
+CREATE DATABASE desc_education OWNER test2;
+
+

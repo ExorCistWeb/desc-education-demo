@@ -1,0 +1,198 @@
+version: "3.8"
+
+services:
+
+  nginx:
+      container_name: nginx
+      build: ./apps/nginx/
+      volumes:
+        - ./apps/nginx/ssl/:/etc/ssl/
+        - ./apps/Backend/mediafiles/:/home/mediafiles/
+        - ./apps/Backend/static/:/home/static/
+
+      ports:
+        - "80:80"
+        - "443:443"
+      depends_on:
+        - frontend
+        - backend
+        - grafana
+        # - postgresql
+        - prometheus
+        - node-exporter
+      restart:
+        always
+      networks:
+        - mynet
+
+  nginx-exporter:
+    container_name: nginx-exporter
+    image: nginx/nginx-prometheus-exporter:1.3.0
+    command:
+      - "--nginx.scrape-uri=https://nginx:443/stub_status"
+    ports:
+      - "9113:9113"
+    networks:
+      - mynet
+
+  frontend:
+    container_name: DescFrontend
+    hostname: desc_frontend
+    build: ./apps/Frontend/
+    ports:
+      - "3000:3000"
+    restart:
+      always
+    networks:
+      - mynet
+
+  backend:
+    container_name: DescBackend
+    build: ./apps/Backend/
+    ports:
+      - "4000:4000"
+    restart: always
+    volumes:
+      - "./apps/Backend/mediafiles:/usr/src/mediafiles/"
+      - "./apps/Backend/static:/usr/src/static/"
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:4000/api/prometheus/metrics"]
+#      interval: 10s
+#      timeout: 10s
+#      retries: 5
+    networks:
+      - mynet
+
+#  backend_ws:
+#    container_name: WSDescBackend
+#    build:
+#      dockerfile: Dockerfile_daphne
+#      context: ./apps/Backend/
+#    volumes:
+#      - "./apps/Backend/mediafiles:/usr/src/mediafiles/"
+#      - "./apps/Backend/static:/usr/src/static/"
+#    ports:
+#        - "8000:8000"
+#    restart: always
+#    networks:
+#      - mynet
+
+  # postgresql:
+  #   image: postgres:16.1-alpine3.18
+  #   container_name: desc_postgresql
+  #   hostname: desc_postgresql
+  #   command:
+  #     - "postgres"
+  #     - "-c"
+  #     - "config_file=/etc/postgresql.conf"
+  #   environment:
+  #     POSTGRES_DB: "postgresUser"
+  #     POSTGRES_USER: "postgresUser"
+  #     POSTGRES_PASSWORD: "postgresPassword"
+  #     PGDATA: "/var/lib/postgresql/data/pgdata"
+  #   volumes:
+  #     - ./apps/postgresql/Init_Database:/docker-entrypoint-initdb.d
+  #     - ./apps/postgresql/postgresql-data:/var/lib/postgresql/data
+  #     - ./apps/postgresql/postgresql.conf:/etc/postgresql.conf:ro
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: [ "CMD-SHELL", "pg_isready -U postgresUser -d postgresUser" ]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   restart: unless-stopped
+  #   networks:
+  #     - mynet
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+      - "./apps/prometheus/:/etc/prometheus/"
+      - "./apps/prometheus/data/:/prometheus/"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - '9090:9090'
+    networks:
+      - mynet
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    volumes:
+      - "./apps/grafana/data/:/var/lib/grafana/"
+      - "./apps/grafana/:/etc/grafana/"
+    user: "$UID:$GID"
+    ports:
+      - '3060:3060'
+    networks:
+      - mynet
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node-exporter
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - mynet
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./apps/redis/data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+    command: redis-server --save 20 1 --loglevel warning --requirepass $REDIS_USER_PASSWORD
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - mynet
+#    tty: true
+#    stdin_open: true
+
+  celery:
+    container_name: celery
+    restart: always
+    build:
+      dockerfile: Dockerfile_celery
+      context: ./apps/Backend/
+    volumes:
+      - "./apps/Backend/mediafiles:/usr/src/mediafiles/"
+      - "./apps/Backend/static:/usr/src/static/"
+    networks:
+      - mynet
+
+  celery-exporter:
+    container_name: celery-exporter
+    image: danihodovic/celery-exporter
+    ports:
+      - "9808:9808"
+    command: --broker-url=redis://default:${REDIS_USER_PASSWORD}@redis:6379/0
+    networks:
+      - mynet
+
+
+
+networks:
+  mynet:

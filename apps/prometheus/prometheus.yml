@@ -1,0 +1,86 @@
+#global:
+#  scrape_interval: 15s
+#  evaluation_interval: 15s
+##  - scrape_configs:
+##    - job_name: monitoring
+##  static_configs:
+#  targets:
+#    - host.docker.internal
+#
+#
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+  external_labels:
+    monitor: django-monitor
+
+rule_files:
+- "django.rules"
+
+scrape_configs:
+- job_name: 'celery'
+  static_configs:
+    - targets: [ 'celery-exporter:9808']
+- job_name: 'nginx'
+  static_configs:
+    - targets: ['nginx-exporter:9113']
+- job_name: 'node'
+  static_configs:
+    - targets: ['node-exporter:9100']
+- job_name: "django"
+  metrics_path: /api/prometheus/metrics
+  static_configs:
+    - targets: [
+      "DescBackend:4001",
+      "DescBackend:4002",
+      "DescBackend:4003",
+      "DescBackend:4004",
+      "DescBackend:4005",
+      "DescBackend:4006",
+      "DescBackend:4007",
+      "DescBackend:4008",
+      "DescBackend:4009",
+      "DescBackend:4010",
+#      "DescBackend:4011",
+#      "DescBackend:4012",
+#      "DescBackend:4013",
+#      "DescBackend:4014",
+#      "DescBackend:4015",
+#      "DescBackend:4016",
+#      "DescBackend:4017",
+#      "DescBackend:4018",
+#      "DescBackend:4019",
+#      "DescBackend:4020",
+#      "DescBackend:4021",
+#      "DescBackend:4022",
+#      "DescBackend:4023",
+#      "DescBackend:4024",
+#      "DescBackend:4025",
+#      "DescBackend:4026",
+#      "DescBackend:4027",
+#      "DescBackend:4028",
+#      "DescBackend:4029",
+#      "DescBackend:4030",
+#      "DescBackend:4031",
+#      "DescBackend:4032",
+#      "DescBackend:4033",
+#      "DescBackend:4034",
+#      "DescBackend:4035",
+#      "DescBackend:4036",
+#      "DescBackend:4037",
+#      "DescBackend:4038",
+#      "DescBackend:4039",
+#      "DescBackend:4040",
+#      "DescBackend:4041",
+#      "DescBackend:4042",
+#      "DescBackend:4043",
+#      "DescBackend:4044",
+#      "DescBackend:4045",
+#      "DescBackend:4046",
+#      "DescBackend:4047",
+#      "DescBackend:4048",
+#      "DescBackend:4049",
+#      "DescBackend:4050",
+    ]
